@@ -7,7 +7,8 @@
 		"test": "vitest",
 		"watch": "vitest --watch",
 		"coverage:macos": "vitest run --coverage --coverage.exclude=./lib/ableton-info-win64.js",
-		"coverage:windows": "vitest run --coverage --coverage.exclude=./lib/ableton-info-macos.js"
+		"coverage:windows": "vitest run --coverage --coverage.exclude=./lib/ableton-info-macos.js",
+		"publish": "npm publish --access=public"
 	},
 	"keywords": [],
 	"author": "Jeff Griffiths (  https://github.com/jeffgca )",
