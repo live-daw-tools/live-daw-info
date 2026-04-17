@@ -1,7 +1,7 @@
 {
-	"name": "node",
+	"name": "@live-daw-tools/live-daw-info",
 	"version": "0.0.1",
-	"description": "Template node module.",
+	"description": "A library for retrieving information about the user's Live installation(s).",
 	"main": "index.js",
 	"scripts": {
 		"test": "vitest",
