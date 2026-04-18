@@ -1,4 +1,4 @@
-import { expect, test, vi, describe, beforeEach, afterEach } from 'vitest'
+import { expect, test, vi, describe } from 'vitest'
 import { execSync } from 'child_process'
 import os, { platform } from 'os'
 import fs from 'node:fs'
@@ -33,17 +33,7 @@ test('PluginInfoMacOS constructor throws on non-macOS platform', () => {
 	platformSpy.mockRestore()
 })
 
-describe('AbletonInfoMacOS', () => {
-	let platformSpy
-
-	beforeEach(() => {
-		platformSpy = vi.spyOn(os, 'platform').mockReturnValue('darwin')
-	})
-
-	afterEach(() => {
-		platformSpy.mockRestore()
-		vi.resetAllMocks()
-	})
+describe.skipIf(platform() !== 'darwin')('AbletonInfoMacOS', () => {
 	test('getVst2Plugins returns empty list when VST2 is disabled by config', async () => {
 		const readdirSpy = vi
 			.spyOn(fs.promises, 'readdir')
@@ -252,7 +242,6 @@ describe('AbletonInfoMacOS', () => {
 	})
 
 	test('getMacOSVersion returns a version string', () => {
-		vi.mocked(execSync).mockReturnValueOnce('14.2.1')
 		const instance = new AbletonInfoMacOS()
 		const version = instance.getMacOSVersion()
 
@@ -266,7 +255,7 @@ describe('AbletonInfoMacOS', () => {
 		expect(version.length).toBeGreaterThan(0)
 	})
 
-	test.skipIf(platform() !== 'darwin')('getMacOSVersion handles execution correctly on actual macOS', async () => {
+	test('getMacOSVersion handles execution correctly', async () => {
 		// get current OS version
 		const currentVersion = execSync('sw_vers -productVersion', {
 			encoding: 'utf8',

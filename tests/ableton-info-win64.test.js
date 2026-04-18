@@ -554,7 +554,7 @@ describe('AbletonInfoWin64', () => {
 		const accessSpy = vi.spyOn(fs, 'access').mockResolvedValue(undefined)
 		const readdirSpy = vi
 			.spyOn(fs, 'readdir')
-			.mockResolvedValue(['OtherFolder', 'Live 12 Suite'])
+			.mockResolvedValue(['OtherFolder', 'NotLive'])
 
 		const result = await instance._getAbletonInstallations()
 
