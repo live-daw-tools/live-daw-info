@@ -363,7 +363,7 @@ describe('AbletonPrefs', () => {
 	})
 
 	describe('extractVst3CustomPath', () => {
-		it('should extract custom path when present in vst3-custom-enabled file', async () => {
+		it('should extract custom path when present in VST3 custom-enabled file', async () => {
 			prefsPath = path.join(
 				__dirname,
 				'testdata',

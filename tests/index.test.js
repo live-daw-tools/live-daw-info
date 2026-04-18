@@ -1,7 +1,6 @@
 import { expect, test, vi } from 'vitest'
 import { AbletonInfoMacOS } from '../lib/ableton-info-macos.js'
 import { AbletonInfoWin64, AbletonPrefs } from '../index.js'
-import os from 'os'
 
 test('index.js exports AbletonInfoMacOS', () => {
 	expect(typeof AbletonInfoMacOS).toBe('function')
