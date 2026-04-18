@@ -1,4 +1,4 @@
-import { expect, test, vi, describe } from 'vitest'
+import { expect, test, vi, describe, beforeEach, afterEach } from 'vitest'
 import { execSync } from 'child_process'
 import os, { platform } from 'os'
 import fs from 'node:fs/promises'
@@ -15,6 +15,7 @@ import {
 	AbletonInfoWin64,
 	PluginInfoWin64,
 	isRunningInWsl,
+	runPowerShellCommand,
 } from '../lib/ableton-info-win64.js'
 
 describe('isRunningInWsl', () => {
@@ -138,7 +139,57 @@ describe('isRunningInWsl', () => {
 // Note: Platform check test is skipped as mocking os.platform() with WSL checks is complex.
 // The actual platform validation is tested in the platform-specific describe blocks below.
 
-describe.skipIf(platform() !== 'win32')('PluginInfoWin64', () => {
+test('PluginInfoWin64 constructor throws on non-Windows non-WSL platform', () => {
+	const originalDistro = process.env.WSL_DISTRO_NAME
+	const originalWslEnv = process.env.WSLENV
+	delete process.env.WSL_DISTRO_NAME
+	delete process.env.WSLENV
+
+	const platformSpy = vi.spyOn(os, 'platform').mockReturnValue('linux')
+	const typeSpy = vi.spyOn(os, 'type').mockReturnValue('Linux')
+
+	expect(() => new PluginInfoWin64()).toThrow(
+		'PluginInfoWin64 can only be used on Windows',
+	)
+
+	platformSpy.mockRestore()
+	typeSpy.mockRestore()
+
+	if (originalDistro !== undefined) process.env.WSL_DISTRO_NAME = originalDistro
+	if (originalWslEnv !== undefined) process.env.WSLENV = originalWslEnv
+})
+
+test('AbletonInfoWin64 constructor throws on non-Windows non-WSL platform', () => {
+	const originalDistro = process.env.WSL_DISTRO_NAME
+	const originalWslEnv = process.env.WSLENV
+	delete process.env.WSL_DISTRO_NAME
+	delete process.env.WSLENV
+
+	const platformSpy = vi.spyOn(os, 'platform').mockReturnValue('linux')
+	const typeSpy = vi.spyOn(os, 'type').mockReturnValue('Linux')
+
+	expect(() => new AbletonInfoWin64()).toThrow(
+		'AbletonInfoWin64 can only be used on Windows operating systems',
+	)
+
+	platformSpy.mockRestore()
+	typeSpy.mockRestore()
+
+	if (originalDistro !== undefined) process.env.WSL_DISTRO_NAME = originalDistro
+	if (originalWslEnv !== undefined) process.env.WSLENV = originalWslEnv
+})
+
+describe('PluginInfoWin64', () => {
+	let platformSpy
+
+	beforeEach(() => {
+		platformSpy = vi.spyOn(os, 'platform').mockReturnValue('win32')
+	})
+
+	afterEach(() => {
+		platformSpy.mockRestore()
+		vi.resetAllMocks()
+	})
 	test('getVst2Plugins returns empty list when VST2 is disabled by config', async () => {
 		const readdirSpy = vi
 			.spyOn(fs, 'readdir')
@@ -370,7 +421,17 @@ describe.skipIf(platform() !== 'win32')('PluginInfoWin64', () => {
 	})
 })
 
-describe.skipIf(platform() !== 'win32')('AbletonInfoWin64', () => {
+describe('AbletonInfoWin64', () => {
+	let platformSpy
+
+	beforeEach(() => {
+		platformSpy = vi.spyOn(os, 'platform').mockReturnValue('win32')
+	})
+
+	afterEach(() => {
+		platformSpy.mockRestore()
+		vi.resetAllMocks()
+	})
 	test('AbletonInfoWin64 init', () => {
 		const instance = new AbletonInfoWin64()
 		expect(instance.platform).toBe('win32')
@@ -473,5 +534,97 @@ describe.skipIf(platform() !== 'win32')('AbletonInfoWin64', () => {
 		)
 
 		releaseSpy.mockRestore()
+	})
+
+	test('_getAbletonInstallations returns error string when install root not accessible', async () => {
+		const instance = new AbletonInfoWin64()
+		const accessSpy = vi.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'))
+
+		const result = await instance._getAbletonInstallations()
+
+		expect(typeof result).toBe('string')
+		expect(result).toContain('Install root path not found')
+		expect(result).toContain(instance.LIVE_PATHS.Install_Root)
+
+		accessSpy.mockRestore()
+	})
+
+	test('_getAbletonInstallations returns array when install root is accessible', async () => {
+		const instance = new AbletonInfoWin64()
+		const accessSpy = vi.spyOn(fs, 'access').mockResolvedValue(undefined)
+		const readdirSpy = vi
+			.spyOn(fs, 'readdir')
+			.mockResolvedValue(['OtherFolder', 'Live 12 Suite'])
+
+		const result = await instance._getAbletonInstallations()
+
+		expect(Array.isArray(result)).toBe(true)
+
+		accessSpy.mockRestore()
+		readdirSpy.mockRestore()
+	})
+
+	test('getLiveVersionFromExe returns trimmed version string on success', async () => {
+		const instance = new AbletonInfoWin64()
+		vi.mocked(execSync).mockReturnValue(Buffer.from('12.1.0\r\n'))
+
+		const result = await instance.getLiveVersionFromExe(
+			'C:\\Program Files\\Ableton\\Live.exe',
+		)
+
+		expect(result).toBe('12.1.0')
+
+		vi.clearAllMocks()
+	})
+
+	test('getLiveVersionFromExe returns null and logs error on failure', async () => {
+		const instance = new AbletonInfoWin64()
+		vi.mocked(execSync).mockImplementation(() => {
+			throw new Error('Command failed')
+		})
+
+		const consoleSpy = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {})
+
+		const result = await instance.getLiveVersionFromExe(
+			'C:\\Program Files\\Ableton\\Live.exe',
+		)
+
+		expect(result).toBeNull()
+		expect(consoleSpy).toHaveBeenCalled()
+
+		consoleSpy.mockRestore()
+		vi.clearAllMocks()
+	})
+})
+
+describe('runPowerShellCommand', () => {
+	test('returns trimmed stdout on success', () => {
+		vi.mocked(execSync).mockReturnValue(Buffer.from('12.1.0\r\n'))
+
+		const result = runPowerShellCommand(
+			'"(Get-Item \'C:\\\\test.exe\').VersionInfo.ProductVersion"',
+		)
+
+		expect(result).toBe('12.1.0')
+		expect(vi.mocked(execSync)).toHaveBeenCalledWith(
+			expect.stringContaining('powershell.exe'),
+			expect.objectContaining({ windowsHide: true }),
+		)
+
+		vi.clearAllMocks()
+	})
+
+	test('throws when execSync throws', () => {
+		vi.mocked(execSync).mockImplementation(() => {
+			throw new Error('powershell not found')
+		})
+
+		expect(() =>
+			runPowerShellCommand('"some command"'),
+		).toThrow('powershell not found')
+
+		vi.clearAllMocks()
 	})
 })
