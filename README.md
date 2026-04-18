@@ -15,3 +15,7 @@
 - VST Preferences strings:
   - Vst3Preferences
   - Vst2Preferences
+ 
+## JSDoc Api Reference
+
+ - [Generated docs](https://live-daw-tools.github.io/live-daw-info/)
