@@ -7,7 +7,9 @@
 		"test": "vitest",
 		"watch": "vitest --watch",
 		"coverage:macos": "vitest run --coverage --coverage.exclude=./lib/ableton-info-win64.js",
-		"coverage:windows": "vitest run --coverage --coverage.exclude=./lib/ableton-info-macos.js"
+		"coverage:windows": "vitest run --coverage --coverage.exclude=./lib/ableton-info-macos.js",
+		"docs": "jsdoc -c jsdoc.config.json",
+		"publish": "npm publish --access=public"
 	},
 	"keywords": [],
 	"author": "Jeff Griffiths (  https://github.com/jeffgca )",
@@ -15,6 +17,7 @@
 	"type": "module",
 	"devDependencies": {
 		"@vitest/coverage-v8": "^2.0.0",
+		"jsdoc": "^4.0.5",
 		"nodemon": "^3.1.11",
 		"vitest": "^2.0.0"
 	},

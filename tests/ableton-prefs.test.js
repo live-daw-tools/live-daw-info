@@ -30,6 +30,17 @@ describe('AbletonPrefs', () => {
 			)
 		})
 
+		it('should throw error when file has no PluginManager segment', async () => {
+			const noPluginManagerPath = path.join(
+				__dirname,
+				'testdata',
+				'NoPluginManager.cfg',
+			)
+			await expect(new AbletonPrefs(noPluginManagerPath)).rejects.toThrow(
+				'PluginManager segment not found',
+			)
+		})
+
 		it('should load bytes and text representations from file', async () => {
 			prefs = await new AbletonPrefs(prefsPath)
 			// Verify the object has the expected structure by accessing methods
@@ -352,7 +363,7 @@ describe('AbletonPrefs', () => {
 	})
 
 	describe('extractVst3CustomPath', () => {
-		it('should extract custom path when present', async () => {
+		it('should extract custom path when present in VST3 custom-enabled file', async () => {
 			prefsPath = path.join(
 				__dirname,
 				'testdata',
@@ -361,15 +372,9 @@ describe('AbletonPrefs', () => {
 			)
 			prefs = await new AbletonPrefs(prefsPath)
 
-			// Get a segment that contains vst3 configuration
-			const indexes = prefs.findAllOccurrences(
-				'Vst3Preferences',
-				new TextEncoder().encode(require('fs').readFileSync(prefsPath)),
-			)
-			if (indexes.length > 1) {
-				// We can test the method exists and can be called
-				expect(typeof prefs.extractVst3CustomPath).toBe('function')
-			}
+			const indexes = prefs.findAllOccurrences('Vst3Preferences', prefs.bytes)
+			expect(indexes.length).toBeGreaterThan(1)
+			expect(typeof prefs.extractVst3CustomPath).toBe('function')
 		})
 
 		it('should return false when no custom path found', async () => {
@@ -389,29 +394,55 @@ describe('AbletonPrefs', () => {
 	})
 
 	describe('extractVst2CustomPath', () => {
-		it('should extract custom path when present', async () => {
+		beforeEach(async () => {
 			prefsPath = path.join(
 				__dirname,
 				'testdata',
 				'live-11',
-				'Preferences-vst2-custom-enabled.cfg',
+				'Preferences-vst2-sys-enabled.cfg',
 			)
 			prefs = await new AbletonPrefs(prefsPath)
-
-			// The method exists and can be called
-			expect(typeof prefs.extractVst2CustomPath).toBe('function')
 		})
 
-		it('should handle files with vst2 disabled', async () => {
-			prefsPath = path.join(
-				__dirname,
-				'testdata',
-				'live-11',
-				'Preferences-vst2-sys-disabled.cfg',
-			)
-			prefs = await new AbletonPrefs(prefsPath)
-			// Just verify the method exists
-			expect(typeof prefs.extractVst2CustomPath).toBe('function')
+		it('should return null when bytes[14] is 0', () => {
+			const bytes = new Uint8Array(20)
+			bytes[14] = 0
+			const result = prefs.extractVst2CustomPath(bytes)
+			expect(result).toBeNull()
+		})
+
+		it('should extract macOS custom path when bytes[14] is 28', () => {
+			const bytes = new Uint8Array(50)
+			bytes[14] = 28
+			const pathStr = '/tmp/custom-vst'
+			const pathBytes = new TextEncoder().encode(pathStr)
+			for (let i = 0; i < pathBytes.length; i++) {
+				bytes[20 + i] = pathBytes[i]
+			}
+			bytes[20 + pathBytes.length] = 0x01 // \x01 terminator
+
+			const result = prefs.extractVst2CustomPath(bytes)
+			expect(result).toBe('/tmp/custom-vst')
+		})
+
+		it('should extract Windows custom path when bytes[14] is 41', () => {
+			const bytes = new Uint8Array(50)
+			bytes[14] = 41
+			const pathContent = ')C:/vst/plugins)'
+			const pathBytes = new TextEncoder().encode(pathContent)
+			for (let i = 0; i < pathBytes.length; i++) {
+				bytes[20 + i] = pathBytes[i]
+			}
+
+			const result = prefs.extractVst2CustomPath(bytes)
+			expect(result).toBe('C:/vst/plugins')
+		})
+
+		it('should return undefined when bytes[14] is 28 but no matching path found', () => {
+			const bytes = new Uint8Array(20)
+			bytes[14] = 28
+			const result = prefs.extractVst2CustomPath(bytes)
+			expect(result).toBeUndefined()
 		})
 	})
 
