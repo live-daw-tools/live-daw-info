@@ -1,0 +1,13 @@
+{
+	"source": {
+		"include": ["lib", "index.js"],
+		"includePattern": "\\.js$",
+		"excludePattern": "(node_modules/|docs/)"
+	},
+	"opts": {
+		"destination": "./docs",
+		"recurse": true,
+		"readme": "./README.md"
+	},
+	"plugins": ["plugins/markdown"]
+}
